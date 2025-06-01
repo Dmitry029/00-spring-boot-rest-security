@@ -19,9 +19,40 @@ public class DemoSecurityConfig {
 
     @Bean
     public UserDetailsManager userDetailsManager(DataSource dataSource) {
-        return new JdbcUserDetailsManager(dataSource);
+        JdbcUserDetailsManager jdbcUserDetailsManager = new JdbcUserDetailsManager(dataSource);
+
+        // define how to find user
+        jdbcUserDetailsManager.setUsersByUsernameQuery(
+                "select user_id, pw, active from members where user_id = ?");
+
+        // define how to find role
+        jdbcUserDetailsManager.setAuthoritiesByUsernameQuery(
+                "select user_id, role from roles where user_id = ?");
+
+        return jdbcUserDetailsManager;
     }
 
+    @Bean
+    public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
+
+        http.authorizeHttpRequests(configurer ->
+                configurer
+                        .requestMatchers(HttpMethod.GET, "/api/employees").hasRole("EMPLOYEE")
+                        .requestMatchers(HttpMethod.GET, "/api/employees/**").hasRole("EMPLOYEE")
+                        .requestMatchers(HttpMethod.POST, "/api/employees").hasRole("MANAGER")
+                        .requestMatchers(HttpMethod.PUT, "/api/employees").hasRole("MANAGER")
+                        .requestMatchers(HttpMethod.PATCH, "/api/employees/**").hasRole("MANAGER")
+                        .requestMatchers(HttpMethod.DELETE, "/api/employees/**").hasRole("ADMIN")
+        );
+
+        // use HTTP Basic authentication
+        http.httpBasic(Customizer.withDefaults());
+
+        // disable Cross Site Request Forgery (CSRF)
+        http.csrf(AbstractHttpConfigurer::disable);
+        return http.build();
+    }
+}
 
  /*   @Bean
     public InMemoryUserDetailsManager userDetailsManager() {
@@ -45,25 +76,3 @@ public class DemoSecurityConfig {
                 .build();
         return new InMemoryUserDetailsManager(john, mary, susan);
     }*/
-
-    @Bean
-    public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
-
-        http.authorizeHttpRequests(configurer ->
-                configurer
-                        .requestMatchers(HttpMethod.GET, "/api/employees").hasRole("EMPLOYEE")
-                        .requestMatchers(HttpMethod.GET, "/api/employees/**").hasRole("EMPLOYEE")
-                        .requestMatchers(HttpMethod.POST, "/api/employees").hasRole("MANAGER")
-                        .requestMatchers(HttpMethod.PUT, "/api/employees").hasRole("MANAGER")
-                        .requestMatchers(HttpMethod.PATCH, "/api/employees/**").hasRole("MANAGER")
-                        .requestMatchers(HttpMethod.DELETE, "/api/employees/**").hasRole("ADMIN")
-        );
-
-        // use HTTP Basic authentication
-        http.httpBasic(Customizer.withDefaults());
-
-        // disable Cross Site Request Forgery (CSRF)
-        http.csrf(AbstractHttpConfigurer::disable);
-        return http.build();
-    }
-}
